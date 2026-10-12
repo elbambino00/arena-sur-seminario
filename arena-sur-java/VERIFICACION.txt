@@ -1,0 +1,68 @@
+Compilado y ejecutado con OpenJDK 17.0.20; código compatible con Java 21.
+
+OK: Cancha inicialmente libre
+OK: Seña del 20%
+OK: Reserva pendiente
+OK: Seña registrada
+OK: Seña confirma reserva
+OK: Saldo inicial
+OK: No duplica seña
+OK: Consulta historial de pagos
+OK: Superposición parcial
+OK: Turno que contiene al existente
+OK: Turnos contiguos permitidos
+OK: Otra cancha disponible
+OK: Duplicado rechazado
+OK: Cliente inexistente
+OK: Cancha inexistente
+OK: Duración inválida
+OK: Fecha pasada
+OK: Email duplicado
+OK: Vencimiento exacto cancela
+OK: Turno vencido libera disponibilidad
+OK: Cancelación anticipada devuelve seña
+OK: Cancelación tardía retiene la seña si no hay saldo abonado
+OK: Saldo rechazado antes de finalizar el turno
+OK: Saldo rechazado un minuto antes del fin
+OK: Saldo habilitado al finalizar el turno
+OK: Saldo pendiente cero
+OK: No duplica saldo
+OK: Consulta historial completo de pagos
+OK: Cancelación tardía retiene seña y devuelve saldo
+OK: Tarifa de pádel 90 minutos
+OK: Seña rechazada al cumplirse el vencimiento
+OK: Vencimiento libera reserva sin seña
+OK: Horario disponible tras vencer reserva
+OK: Modifica reserva confirmada y conserva el estado
+OK: La reserva no se bloquea a sí misma al validar un cambio de duración
+OK: Modificación permitida exactamente dos horas antes
+OK: Rechaza modificación con menos de dos horas
+OK: Rechazo por plazo conserva el turno original
+OK: Modificar reserva pendiente reinicia vencimiento por 30 minutos
+OK: Reserva pendiente modificada vence al cumplirse el nuevo plazo
+OK: Nueva seña superior deja diferencia de $6.000 pendiente
+OK: El saldo se informa separado de la diferencia de seña, sin duplicarla
+OK: Diferencia pendiente conserva reserva confirmada
+OK: No permite pagar saldo mientras falta completar la seña
+OK: Registra el pago adicional de seña por la diferencia exacta
+OK: Saldo recalculado para nueva tarifa de 90 minutos
+OK: Seña y saldo completados luego de modificar tarifa
+OK: Nueva seña inferior genera crédito de $6.000
+OK: El crédito se refleja una sola vez en el saldo pendiente
+OK: El cobro final aplica el crédito sin duplicarlo
+OK: Rechaza modificar a un horario ocupado
+OK: Horario ocupado no produce cambios parciales
+OK: No permite modificar reserva cancelada
+OK: Consulta CU07 por cliente
+OK: Consulta CU07 por cancha
+OK: Consulta CU07 por fecha ordenada cronológicamente
+OK: Consulta CU07 por estado
+OK: Combina filtros CU07 mediante conjunción
+OK: Combina cancha, fecha y estado en CU07
+OK: Consulta CU07 sin coincidencias
+OK: CU07 exige al menos un criterio
+OK: Detalle CU07 presenta datos principales de la reserva
+OK: Detalle CU07 no modifica reserva ni pagos
+OK: Detalle CU07 rechaza ID inexistente
+
+Resultado: 64 pruebas aprobadas.
