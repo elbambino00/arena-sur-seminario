@@ -11,6 +11,9 @@ public final class Reserva {
     private LocalDateTime inicio;
     private final LocalDateTime creacion;
     private LocalDateTime vencimiento;
+    private BigDecimal precioTotal;
+    private BigDecimal importeSena;
+    private BigDecimal creditoFavor = BigDecimal.ZERO.setScale(2);
     private EstadoReserva estado = EstadoReserva.PENDIENTE;
     public Reserva(long id, long usuarioId, Cliente cliente, Cancha cancha, Tarifa tarifa,
                    LocalDateTime inicio, LocalDateTime creacion) {
@@ -22,6 +25,28 @@ public final class Reserva {
         if (!tarifa.deporte().equals(cancha.getDeporte()) || !inicio.isAfter(creacion))
             throw new IllegalArgumentException("Fecha o tarifa incompatible.");
         vencimiento = creacion.plusMinutes(30);
+        precioTotal = tarifa.precio();
+        importeSena = calcularSena(precioTotal);
+    }
+    public static Reserva rehidratar(long id, long usuarioId, Cliente cliente, Cancha cancha,
+                                     Tarifa tarifa, LocalDateTime inicio, LocalDateTime creacion,
+                                     LocalDateTime vencimiento, EstadoReserva estado,
+                                     BigDecimal precioTotal, BigDecimal importeSena,
+                                     BigDecimal creditoFavor) {
+        Reserva reserva = new Reserva(id, usuarioId, cliente, cancha, tarifa, inicio, creacion);
+        if (vencimiento == null || !vencimiento.isAfter(creacion) || estado == null
+                || precioTotal == null || precioTotal.signum() <= 0
+                || importeSena == null || importeSena.signum() < 0
+                || importeSena.compareTo(precioTotal) > 0
+                || creditoFavor == null || creditoFavor.signum() < 0) {
+            throw new IllegalArgumentException("Datos persistidos de reserva inválidos.");
+        }
+        reserva.vencimiento = vencimiento;
+        reserva.estado = estado;
+        reserva.precioTotal = precioTotal;
+        reserva.importeSena = importeSena;
+        reserva.creditoFavor = creditoFavor;
+        return reserva;
     }
     public void actualizarVencimiento(LocalDateTime ahora) {
         if (estado == EstadoReserva.PENDIENTE && !ahora.isBefore(vencimiento))
@@ -37,13 +62,15 @@ public final class Reserva {
     public Cancha getCancha() { return cancha; }
     public Tarifa getTarifa() { return tarifa; }
     public LocalDateTime getInicio() { return inicio; }
+    public LocalDateTime getCreacion() { return creacion; }
     public LocalDateTime getFin() { return inicio.plusMinutes(tarifa.duracion()); }
     public int getDuracion() { return tarifa.duracion(); }
     public LocalDateTime getVencimiento() { return vencimiento; }
     public EstadoReserva getEstado() { return estado; }
-    public BigDecimal getPrecioTotal() { return tarifa.precio(); }
-    public BigDecimal getSena() { return tarifa.precio().multiply(new BigDecimal("0.20")).setScale(2, RoundingMode.HALF_UP); }
-    public BigDecimal getSaldo() { return tarifa.precio().subtract(getSena()); }
+    public BigDecimal getPrecioTotal() { return precioTotal; }
+    public BigDecimal getSena() { return importeSena; }
+    public BigDecimal getCreditoFavorPersistido() { return creditoFavor; }
+    public BigDecimal getSaldo() { return precioTotal.subtract(importeSena); }
     public void confirmar() {
         if (estado != EstadoReserva.PENDIENTE) throw new IllegalStateException("La reserva no está pendiente.");
         estado = EstadoReserva.CONFIRMADA;
@@ -62,7 +89,12 @@ public final class Reserva {
         cancha = nuevaCancha;
         tarifa = nuevaTarifa;
         inicio = nuevoInicio;
+        precioTotal = nuevaTarifa.precio();
+        importeSena = calcularSena(precioTotal);
         if (estado == EstadoReserva.PENDIENTE) vencimiento = ahora.plusMinutes(30);
+    }
+    private static BigDecimal calcularSena(BigDecimal precio) {
+        return precio.multiply(new BigDecimal("0.20")).setScale(2, RoundingMode.HALF_UP);
     }
     public String toString() {
         return id + " | " + cliente.getNombreCompleto() + " | " + cancha.getNombre()

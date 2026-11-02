@@ -3,6 +3,12 @@
 -- BASE DE DATOS DEL SISTEMA DE RESERVAS
 -- ==========================================
 
+-- Script de recreación para desarrollo y demostración.
+-- ADVERTENCIA: elimina y vuelve a crear exclusivamente la base arena_sur.
+-- Requiere MySQL 8.0 o superior.
+
+DROP DATABASE IF EXISTS arena_sur;
+
 
 -- ==========================================
 -- 1. CREACIÓN DE BASE DE DATOS
@@ -10,7 +16,7 @@
 
 CREATE DATABASE IF NOT EXISTS arena_sur
 CHARACTER SET utf8mb4
-COLLATE utf8mb4_0900_ai_ci
+COLLATE utf8mb4_0900_ai_ci;
 
 USE arena_sur;
 
@@ -71,6 +77,9 @@ CREATE TABLE cancha (
     CONSTRAINT pk_cancha
         PRIMARY KEY (id_cancha),
 
+    CONSTRAINT uq_cancha_nombre
+        UNIQUE (nombre),
+
     CONSTRAINT fk_cancha_deporte
         FOREIGN KEY (id_deporte)
         REFERENCES deporte(id_deporte)
@@ -87,6 +96,9 @@ CREATE TABLE tarifa (
 
     CONSTRAINT pk_tarifa
         PRIMARY KEY (id_tarifa),
+
+    CONSTRAINT uq_tarifa_deporte_duracion
+        UNIQUE (id_deporte, duracion_minutos),
 
     CONSTRAINT fk_tarifa_deporte
         FOREIGN KEY (id_deporte)
@@ -160,10 +172,13 @@ CREATE TABLE reserva (
         CHECK (precio_total > 0),
 
     CONSTRAINT chk_reserva_sena
-        CHECK (importe_sena >= 0),
+        CHECK (importe_sena >= 0 AND importe_sena <= precio_total),
 
     CONSTRAINT chk_reserva_credito
-        CHECK (credito_favor >= 0)
+        CHECK (credito_favor >= 0 AND credito_favor <= precio_total),
+
+    CONSTRAINT chk_reserva_vencimiento
+        CHECK (vencimiento_sena > fecha_hora_creacion)
 ) ENGINE = InnoDB;
 
 CREATE TABLE pago (

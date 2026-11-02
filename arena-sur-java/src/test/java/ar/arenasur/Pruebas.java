@@ -1,9 +1,11 @@
 package ar.arenasur;
+import ar.arenasur.config.ConfiguracionBaseDatos;
 import ar.arenasur.consola.Main;
 import ar.arenasur.servicio.*;
 import ar.arenasur.modelo.*;
 import java.time.*;
 import java.math.BigDecimal;
+import java.util.Map;
 
 /** Verificaciones ejecutables sin bibliotecas externas. */
 public final class Pruebas {
@@ -27,6 +29,47 @@ public final class Pruebas {
         throw new AssertionError(caso);
     }
     public static void main(String[] args) {
+        ConfiguracionBaseDatos configuracion = ConfiguracionBaseDatos.desde(Map.of(
+            ConfiguracionBaseDatos.VARIABLE_URL, " jdbc:mysql://localhost:3306/arena_sur ",
+            ConfiguracionBaseDatos.VARIABLE_USUARIO, " arena_sur_app ",
+            ConfiguracionBaseDatos.VARIABLE_PASSWORD, " clave con espacios "));
+        comprobar(configuracion.url().equals("jdbc:mysql://localhost:3306/arena_sur")
+            && configuracion.usuario().equals("arena_sur_app"),
+            "Configuración JDBC normaliza URL y usuario");
+        comprobar(configuracion.password().equals(" clave con espacios "),
+            "Configuración JDBC preserva la contraseña");
+        rechaza(() -> ConfiguracionBaseDatos.desde(Map.of()),
+            "Configuración JDBC exige todas las variables");
+
+        DatosCliente datosCliente = new DatosCliente(
+            " Ana ", " Pérez ", " 11-1234 ", " ana@example.com ");
+        comprobar(datosCliente.nombre().equals("Ana")
+                && datosCliente.apellido().equals("Pérez")
+                && datosCliente.telefono().equals("11-1234")
+                && datosCliente.email().equals("ana@example.com"),
+            "Datos de cliente normalizan espacios");
+        rechaza(() -> new DatosCliente("Ana", "Pérez", "11", "email-inválido"),
+            "Datos de cliente rechazan email inválido");
+
+        LocalDateTime creacionPersistida = LocalDateTime.of(2026, 10, 1, 10, 0);
+        LocalDateTime inicioPersistido = LocalDateTime.of(2026, 10, 20, 18, 0);
+        SolicitudReserva solicitudValida = new SolicitudReserva(
+            1, 1, 60, inicioPersistido, 1, creacionPersistida);
+        comprobar(solicitudValida.inicio().equals(inicioPersistido),
+            "Solicitud de reserva valida el turno futuro");
+        rechaza(() -> new SolicitudReserva(1, 1, 45, inicioPersistido, 1, creacionPersistida),
+            "Solicitud de reserva rechaza duración inválida");
+        Reserva reservaPersistida = Reserva.rehidratar(99, 1,
+            new Cliente(1, "Ana", "Pérez", "11", "ana@example.com"),
+            new CanchaFutbol(1, "Fútbol 1"),
+            new Tarifa(1, "Fútbol 5", 60, new BigDecimal("70000.00")),
+            inicioPersistido, creacionPersistida, creacionPersistida.plusMinutes(30),
+            EstadoReserva.CONFIRMADA, new BigDecimal("60000.00"),
+            new BigDecimal("12000.00"), BigDecimal.ZERO.setScale(2));
+        comprobar(reservaPersistida.getPrecioTotal().compareTo(new BigDecimal("60000.00")) == 0
+                && reservaPersistida.getSena().compareTo(new BigDecimal("12000.00")) == 0,
+            "Reserva rehidratada conserva importes históricos");
+
         Clock fijo = Clock.fixed(Instant.parse("2026-10-12T15:00:00Z"), ZoneId.of("America/Argentina/Buenos_Aires"));
         ReservaService s = Main.crearServicio(fijo);
         s.registrarCliente("Juan","Pérez","111","juan@example.com");

@@ -1,4 +1,13 @@
-Compilado y ejecutado con OpenJDK 17.0.20; código compatible con Java 21.
+Compilado y ejecutado con Eclipse Temurin JDK 21.0.12.1.
+
+OK: Configuración JDBC normaliza URL y usuario
+OK: Configuración JDBC preserva la contraseña
+OK: Configuración JDBC exige todas las variables
+OK: Datos de cliente normalizan espacios
+OK: Datos de cliente rechazan email inválido
+OK: Solicitud de reserva valida el turno futuro
+OK: Solicitud de reserva rechaza duración inválida
+OK: Reserva rehidratada conserva importes históricos
 
 OK: Cancha inicialmente libre
 OK: Seña del 20%
@@ -64,5 +73,63 @@ OK: CU07 exige al menos un criterio
 OK: Detalle CU07 presenta datos principales de la reserva
 OK: Detalle CU07 no modifica reserva ni pagos
 OK: Detalle CU07 rechaza ID inexistente
+OK: CU10 muestra pendientes vigentes y confirmadas ordenadas por cancha y horario
+OK: CU10 excluye reservas canceladas de las ocupaciones
+OK: CU10 calcula inicios disponibles según duración y reservas ocupadas
+OK: CU10 conserva como último inicio disponible las 22:00
+OK: CU10 filtra por cancha
+OK: CU10 filtra por deporte sin distinguir mayúsculas
+OK: CU10 rechaza deporte inexistente
+OK: CU10 no modifica pagos ni reservas vigentes
+OK: CU10 sin reservas informa agenda libre para las cinco canchas
+OK: CU10 permite iniciar a las 09:00
+OK: CU10 permite iniciar a las 22:00 y terminar a las 23:30
+OK: CU10 rechaza inicios anteriores a las 09:00
+OK: CU10 rechaza inicios posteriores a las 22:00
+OK: CU10 cancela pendiente vencida y libera su horario
 
-Resultado: 64 pruebas aprobadas.
+Resultado: 86 pruebas aprobadas.
+
+Integración JDBC verificada con MySQL 8.0.46:
+OK JDBC: lista los tres deportes activos
+OK JDBC: busca un deporte activo por ID
+OK JDBC: informa deporte inexistente
+OK JDBC: lista las cinco canchas activas
+OK JDBC: mapea cada deporte al subtipo de cancha correcto
+OK JDBC: busca una cancha activa por ID
+OK JDBC: informa cancha inexistente
+OK JDBC: lista las seis tarifas activas
+OK JDBC: busca tarifa sin distinguir mayúsculas
+OK JDBC: informa tarifa inexistente
+OK JDBC: el catálogo JDBC es compatible con ReservaService
+
+Resultado JDBC: 11 verificaciones aprobadas.
+
+Integración de clientes verificada con MySQL 8.0.46:
+OK CLIENTE JDBC: lista los tres clientes iniciales
+OK CLIENTE JDBC: inserta y devuelve el ID generado
+OK CLIENTE JDBC: busca el cliente activo por ID
+OK CLIENTE JDBC: busca el email sin distinguir mayúsculas
+OK CLIENTE JDBC: incluye el alta en el listado activo
+OK CLIENTE JDBC: informa cliente inexistente
+OK CLIENTE JDBC: traduce la restricción de email duplicado
+OK CLIENTE JDBC: excluye clientes inactivos
+
+Resultado cliente JDBC: 8 verificaciones aprobadas.
+
+Integración transaccional verificada con MySQL 8.0.46:
+OK RESERVA JDBC: mapea las dos reservas iniciales
+OK RESERVA JDBC: registra una reserva pendiente con importes y vencimiento
+OK RESERVA JDBC: conserva la reserva al crear una nueva instancia
+OK RESERVA JDBC: rechaza una superposición parcial
+OK RESERVA JDBC: permite un turno contiguo
+OK RESERVA JDBC: registra la seña y confirma la reserva atómicamente
+OK RESERVA JDBC: persiste y consulta el movimiento de pago
+OK RESERVA JDBC: impide duplicar la seña
+OK RESERVA JDBC: persiste el vencimiento al intentar pagar fuera de término
+OK RESERVA JDBC: el vencimiento queda persistido como cancelación
+OK RESERVA JDBC: una reserva vencida libera el horario
+OK RESERVA JDBC: serializa dos intentos concurrentes sobre la misma cancha
+OK RESERVA JDBC: la limpieza conserva únicamente los datos iniciales
+
+Resultado reserva JDBC: 13 verificaciones aprobadas.

@@ -1,12 +1,12 @@
-# Arena Sur — primer incremento TP3
+# Arena Sur — prototipo integrador
 
-Aplicación de consola Java 17 o superior (compatible con Java 21). No requiere frameworks ni dependencias externas.
+Aplicación de consola compilada con Java 21. Maven administra el controlador oficial MySQL Connector/J.
 
 ## Ejecutar en Windows
 
 1. Extraer el ZIP.
 2. Abrir PowerShell en la carpeta arena-sur-java.
-3. Verificar que java y javac estén en PATH (requiere JDK, no solamente JRE).
+3. Verificar que Java 21 y `javac` estén en PATH (requiere JDK, no solamente JRE).
 4. Ejecutar:
 
 ```powershell
@@ -20,6 +20,44 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\probar.ps1
 ```
 
 En IntelliJ: abrir pom.xml, seleccionar JDK 21 y ejecutar ar.arenasur.consola.Main.
+
+## Verificar la conexión MySQL
+
+La aplicación recibe la configuración exclusivamente mediante variables de entorno. Copiar los nombres de `.env.example`, pero no guardar contraseñas reales dentro del repositorio.
+
+```powershell
+$env:ARENA_SUR_DB_URL = "jdbc:mysql://localhost:3306/arena_sur"
+$env:ARENA_SUR_DB_USER = "arena_sur_app"
+$env:ARENA_SUR_DB_PASSWORD = "clave_local"
+
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\verificar-conexion.ps1
+```
+
+La verificación abre una conexión, consulta la base activa e informa la versión del servidor. Nunca imprime la contraseña.
+
+Para verificar los repositorios JDBC de deportes, canchas y tarifas contra una base inicializada:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\verificar-catalogo-jdbc.ps1
+```
+
+Esta prueba es de solo lectura y comprueba el mapeo completo del catálogo MySQL al modelo Java.
+
+Para verificar altas y consultas JDBC de clientes:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\verificar-clientes-jdbc.ps1
+```
+
+La prueba crea un cliente temporal, comprueba la unicidad del email y lo elimina al finalizar.
+
+Para verificar el registro transaccional de reservas y señas, incluyendo competencia concurrente:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\verificar-reservas-jdbc.ps1
+```
+
+La prueba utiliza fechas reservadas para integración y elimina sus reservas y pagos al finalizar.
 
 ## Alcance y datos
 
@@ -35,8 +73,8 @@ CU10: consulta la agenda por fecha, con filtros opcionales por deporte/cancha; m
 Las cinco canchas y seis tarifas reproducen los datos del SQL de AP2: fútbol 60/90 minutos $60.000/$90.000; pádel $55.000/$80.000; tenis $40.000/$60.000.
 El operador es el usuario de demostración con ID 1, sin autenticación implementada.
 
-Los datos están en memoria y se pierden al cerrar. El vencimiento se actualiza al consultar o registrar; no hay tarea en segundo plano.
-No están implementadas autenticación ni conexión MySQL.
+Los datos funcionales todavía están en memoria y se pierden al cerrar. El vencimiento se actualiza al consultar o registrar; no hay tarea en segundo plano.
+La conectividad MySQL, el catálogo, los clientes y el alta transaccional de reservas con su seña están configurados y verificados. La consola continúa usando memoria hasta completar modificación, saldo y cancelación JDBC. La autenticación de operadores aún no está implementada.
 El horario de inicio permitido es de 09:00 a 22:00, ambos inclusive. Un turno iniciado a las 22:00 puede terminar a las 23:00 o 23:30. No permite turnos que crucen medianoche.
 Es el primer incremento, no la entrega TP3 completa ni el documento académico final.
 
@@ -45,6 +83,8 @@ Es el primer incremento, no la entrega TP3 completa ni el documento académico f
 modelo: Cliente, Tarifa, Cancha, especializaciones y Reserva.
 servicio: validaciones, disponibilidad y registro.
 repositorio: contrato de persistencia e implementación ArrayList.
+repositorio.jdbc: consultas persistentes de deportes, canchas y tarifas mediante `PreparedStatement`.
+config: configuración externa, creación de conexiones y diagnóstico JDBC.
 consola: lectura de datos, menú y tratamiento de errores.
 
 Encapsulamiento: atributos privados y actualización de estado mediante método.
@@ -90,6 +130,6 @@ La agenda CU10 requiere una fecha y admite filtros opcionales por cancha y depor
 Se conserva la separación Cancha/Tarifa y la referencia de cliente, tarifa y operador en reservas.
 El modelo Java agrega la jerarquía de canchas para evidenciar POO y permite modificar cancha, horario y duración de una reserva.
 La clase Reserva conserva precio/seña históricos en forma derivada de una Tarifa inmutable.
-Para TP4 incorporar un repositorio JDBC con transacciones, control de concurrencia y actualización persistente del vencimiento.
+Para TP4 falta incorporar repositorios JDBC con transacciones, control de concurrencia y actualización persistente del vencimiento.
 El contrato actual devuelve objetos mutables: al incorporar JDBC debe explicitarse una operación de actualización de estado.
-No se modifica el SQL de AP2 ni se publica este código automáticamente en GitHub.
+El esquema MySQL corregido se mantiene en la carpeta `database` del repositorio. El código no se publica automáticamente en GitHub.
