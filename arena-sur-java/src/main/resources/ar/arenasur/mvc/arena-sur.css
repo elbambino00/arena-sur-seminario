@@ -1,0 +1,116 @@
+.root-pane {
+    -fx-background-color: #eef4ff;
+    -fx-font-family: "Segoe UI";
+}
+
+.header-pane {
+    -fx-background-color: white;
+    -fx-padding: 18px 22px 16px 22px;
+    -fx-border-color: #d5dfed;
+    -fx-border-radius: 6px;
+    -fx-background-radius: 6px;
+}
+
+.brand-title {
+    -fx-text-fill: #132238;
+    -fx-font-size: 28px;
+    -fx-font-weight: bold;
+}
+
+.brand-subtitle {
+    -fx-text-fill: #52657d;
+    -fx-font-size: 13px;
+    -fx-padding: 8px 0 0 0;
+}
+
+.brand-row {
+    -fx-alignment: center-left;
+}
+
+.status-label {
+    -fx-text-fill: #52657d;
+    -fx-font-size: 13px;
+}
+
+.primary-button {
+    -fx-background-color: #007f5f;
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 6px;
+    -fx-padding: 8px 14px;
+}
+
+.navigation-bar {
+    -fx-background-color: #dfeafe;
+    -fx-padding: 10px 16px;
+    -fx-border-color: #c9d8ee;
+    -fx-border-width: 0 0 1px 0;
+}
+
+.navigation-item {
+    -fx-text-fill: #26384f;
+    -fx-font-weight: bold;
+}
+
+.tab-pane {
+    -fx-padding: 16px 0 0 0;
+}
+
+.tab-pane .tab-header-area .tab-header-background {
+    -fx-background-color: transparent;
+}
+
+.tab-pane .tab {
+    -fx-background-color: #dbe4ef;
+    -fx-padding: 8px 14px;
+}
+
+.tab-pane .tab:selected {
+    -fx-background-color: #11263d;
+}
+
+.tab-pane .tab:selected .tab-label {
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+}
+
+.list-view {
+    -fx-background-radius: 8px;
+    -fx-border-color: #d2dce8;
+    -fx-border-radius: 8px;
+}
+
+.section-title {
+    -fx-background-color: #dfeafe;
+    -fx-text-fill: #132238;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-padding: 10px;
+}
+
+.info-card {
+    -fx-background-color: #dff8ef;
+    -fx-text-fill: #174a3b;
+    -fx-padding: 12px;
+    -fx-background-radius: 5px;
+}
+
+.summary-card {
+    -fx-background-color: #e8effc;
+    -fx-text-fill: #132238;
+    -fx-font-weight: bold;
+    -fx-padding: 14px;
+    -fx-background-radius: 5px;
+}
+
+.text-field, .combo-box {
+    -fx-background-radius: 6px;
+    -fx-border-color: #c4d0de;
+    -fx-border-radius: 6px;
+    -fx-padding: 8px;
+}
+
+.button {
+    -fx-background-radius: 6px;
+    -fx-padding: 8px 12px;
+}
