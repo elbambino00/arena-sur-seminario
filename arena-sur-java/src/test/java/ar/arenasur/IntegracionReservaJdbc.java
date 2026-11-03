@@ -3,6 +3,7 @@ package ar.arenasur;
 import ar.arenasur.config.ConfiguracionBaseDatos;
 import ar.arenasur.config.ConexionMySql;
 import ar.arenasur.modelo.EstadoReserva;
+import ar.arenasur.modelo.ModificacionReserva;
 import ar.arenasur.modelo.Pago;
 import ar.arenasur.modelo.Reserva;
 import ar.arenasur.modelo.SolicitudReserva;
@@ -96,6 +97,27 @@ public final class IntegracionReservaJdbc {
             rechazaConflicto(() -> repositorio.registrarSena(
                     pendiente.getId(), 1, AHORA.plusMinutes(11)),
                 "La seña ya fue cubierta.", "impide duplicar la seña");
+
+            Reserva modificada = repositorio.modificar(contigua.getId(),
+                new ModificacionReserva(5, 90, FECHA_DESDE.atTime(20, 0), AHORA));
+            comprobar(modificada.getDuracion() == 90
+                    && modificada.getPrecioTotal().compareTo(new BigDecimal("60000.00")) == 0,
+                "modifica turno y recalcula importe total");
+            repositorio.registrarSena(modificada.getId(), 1, AHORA.plusMinutes(10));
+            Pago saldo = repositorio.registrarSaldo(modificada.getId(), 1,
+                FECHA_DESDE.atTime(22, 0));
+            comprobar(saldo.getTipo() == TipoPago.SALDO
+                    && saldo.getImporte().compareTo(new BigDecimal("48000.00")) == 0,
+                "cobra el saldo al finalizar el turno");
+
+            Reserva devolver = repositorio.crearPendiente(new SolicitudReserva(
+                2, 3, 60, FECHA_HASTA.atTime(20, 0), 1, AHORA));
+            repositorio.registrarSena(devolver.getId(), 1, AHORA.plusMinutes(5));
+            repositorio.cancelar(devolver.getId(), 1, AHORA.plusMinutes(10));
+            comprobar(repositorio.listarPagos(devolver.getId()).stream()
+                    .anyMatch(p -> p.getTipo() == TipoPago.DEVOLUCION
+                        && p.getImporte().compareTo(new BigDecimal("8000.00")) == 0),
+                "devuelve la seña en una cancelación anticipada");
 
             Reserva vencida = repositorio.crearPendiente(new SolicitudReserva(
                 1, 3, 60, FECHA_DESDE.plusDays(1).atTime(18, 0), 1, AHORA));

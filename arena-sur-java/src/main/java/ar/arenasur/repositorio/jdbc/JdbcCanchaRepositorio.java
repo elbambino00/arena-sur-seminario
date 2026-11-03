@@ -68,8 +68,8 @@ public final class JdbcCanchaRepositorio implements CanchaRepositorio {
         String nombre = resultados.getString("nombre");
         String deporte = resultados.getString("deporte");
         return switch (deporte) {
-            case "Fútbol 5" -> new CanchaFutbol(id, nombre);
-            case "Pádel" -> new CanchaPadel(id, nombre);
+            case "F\u00FAtbol 5" -> new CanchaFutbol(id, nombre);
+            case "P\u00E1del" -> new CanchaPadel(id, nombre);
             case "Tenis" -> new CanchaTenis(id, nombre);
             default -> throw new PersistenciaException("Deporte de cancha no soportado: " + deporte);
         };

@@ -73,8 +73,10 @@ CU10: consulta la agenda por fecha, con filtros opcionales por deporte/cancha; m
 Las cinco canchas y seis tarifas reproducen los datos del SQL de AP2: fútbol 60/90 minutos $60.000/$90.000; pádel $55.000/$80.000; tenis $40.000/$60.000.
 El operador es el usuario de demostración con ID 1, sin autenticación implementada.
 
-Los datos funcionales todavía están en memoria y se pierden al cerrar. El vencimiento se actualiza al consultar o registrar; no hay tarea en segundo plano.
-La conectividad MySQL, el catálogo, los clientes y el alta transaccional de reservas con su seña están configurados y verificados. La consola continúa usando memoria hasta completar modificación, saldo y cancelación JDBC. La autenticación de operadores aún no está implementada.
+Sin ARENA_SUR_DB_URL la consola funciona en modo memoria; con esa variable configurada utiliza MySQL para catálogo, clientes, reservas y pagos. El vencimiento se actualiza al consultar o registrar; no hay tarea en segundo plano.
+La conectividad MySQL, el catálogo, los clientes y el ciclo transaccional de reservas están configurados y verificados. La autenticación de operadores aún no está implementada.
+La etapa 8 incorpora un punto de entrada JDBC para verificar que la aplicación carga catálogo, clientes y reservas persistidas. Ejecutar verificar-aplicacion-jdbc.ps1 con las variables de conexión configuradas.
+La consola principal selecciona automáticamente el modo MySQL cuando ARENA_SUR_DB_URL está definida; también puede leer un archivo local `.env` al ejecutarse mediante `ejecutar.ps1`. El operador de demostración usa ID 1.
 El horario de inicio permitido es de 09:00 a 22:00, ambos inclusive. Un turno iniciado a las 22:00 puede terminar a las 23:00 o 23:30. No permite turnos que crucen medianoche.
 Es el primer incremento, no la entrega TP3 completa ni el documento académico final.
 

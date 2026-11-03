@@ -7,6 +7,7 @@ import ar.arenasur.modelo.CanchaPadel;
 import ar.arenasur.modelo.CanchaTenis;
 import ar.arenasur.modelo.Cliente;
 import ar.arenasur.modelo.EstadoReserva;
+import ar.arenasur.modelo.ModificacionReserva;
 import ar.arenasur.modelo.Pago;
 import ar.arenasur.modelo.Reserva;
 import ar.arenasur.modelo.SolicitudReserva;
@@ -176,6 +177,143 @@ public final class JdbcReservaTransaccionalRepositorio implements ReservaTransac
     }
 
     @Override
+    public Reserva modificar(long reservaId, ModificacionReserva modificacion) {
+        try (Connection conexion = conexiones.abrir()) {
+            conexion.setAutoCommit(false);
+            try {
+                Reserva actual = bloquearReserva(conexion, reservaId);
+                if (actual.getEstado() == EstadoReserva.CANCELADA) {
+                    throw new ConflictoReservaException("La reserva está cancelada.");
+                }
+                if (actual.getInicio().minusHours(2).isBefore(modificacion.ahora())) {
+                    throw new ConflictoReservaException(
+                        "La modificación debe realizarse al menos dos horas antes del turno original.");
+                }
+                Cancha cancha = bloquearCanchaActiva(conexion, modificacion.canchaId());
+                Tarifa tarifa = buscarTarifaActiva(conexion, cancha.getDeporte(), modificacion.duracion());
+                cancelarPendientesVencidas(conexion, modificacion.canchaId(),
+                    modificacion.inicio().toLocalDate(), modificacion.ahora());
+                if (existeSuperposicion(conexion, modificacion, reservaId)) {
+                    throw new ConflictoReservaException("El horario está ocupado.");
+                }
+                BigDecimal senaPagada = totalPagado(conexion, reservaId, TipoPago.SENA);
+                BigDecimal nuevaSena = tarifa.precio().multiply(new BigDecimal("0.20"))
+                    .setScale(2, java.math.RoundingMode.HALF_UP);
+                BigDecimal credito = senaPagada.subtract(nuevaSena).max(BigDecimal.ZERO);
+                String sql = """
+                    UPDATE reserva
+                    SET id_cancha = ?, id_tarifa = ?, fecha = ?, hora_inicio = ?,
+                        duracion_minutos = ?, precio_total = ?, importe_sena = ?,
+                        credito_favor = ?, vencimiento_sena = ?
+                    WHERE id_reserva = ?
+                    """;
+                try (PreparedStatement actualizacion = conexion.prepareStatement(sql)) {
+                    actualizacion.setLong(1, cancha.getId());
+                    actualizacion.setLong(2, tarifa.id());
+                    actualizacion.setObject(3, modificacion.inicio().toLocalDate());
+                    actualizacion.setObject(4, modificacion.inicio().toLocalTime());
+                    actualizacion.setInt(5, modificacion.duracion());
+                    actualizacion.setBigDecimal(6, tarifa.precio());
+                    actualizacion.setBigDecimal(7, nuevaSena);
+                    actualizacion.setBigDecimal(8, credito);
+                    actualizacion.setObject(9, actual.getEstado() == EstadoReserva.PENDIENTE
+                        ? modificacion.ahora().plusMinutes(30) : actual.getVencimiento());
+                    actualizacion.setLong(10, reservaId);
+                    actualizacion.executeUpdate();
+                }
+                Reserva modificada = bloquearReserva(conexion, reservaId);
+                conexion.commit();
+                return modificada;
+            } catch (SQLException | RuntimeException e) {
+                rollbackSilencioso(conexion);
+                if (e instanceof PersistenciaException persistencia) throw persistencia;
+                if (e instanceof RuntimeException runtime) throw runtime;
+                throw new PersistenciaException("No se pudo modificar la reserva.", e);
+            }
+        } catch (SQLException e) {
+            throw new PersistenciaException("No se pudo iniciar la modificación.", e);
+        }
+    }
+
+    @Override
+    public Pago registrarSaldo(long reservaId, long usuarioId, LocalDateTime fechaHora) {
+        if (reservaId <= 0 || usuarioId <= 0 || fechaHora == null) {
+            throw new IllegalArgumentException("Datos de pago inválidos.");
+        }
+        try (Connection conexion = conexiones.abrir()) {
+            conexion.setAutoCommit(false);
+            try {
+                Reserva reserva = bloquearReserva(conexion, reservaId);
+                if (reserva.getEstado() != EstadoReserva.CONFIRMADA) {
+                    throw new ConflictoReservaException("Solo se cobra saldo de una reserva confirmada.");
+                }
+                if (fechaHora.isBefore(reserva.getFin())) {
+                    throw new ConflictoReservaException("El saldo se registra al finalizar el turno.");
+                }
+                if (totalPagado(conexion, reservaId, TipoPago.SENA)
+                        .compareTo(reserva.getSena()) < 0) {
+                    throw new ConflictoReservaException("Primero debe registrarse la seña completa.");
+                }
+                if (totalPagado(conexion, reservaId, TipoPago.SALDO).signum() > 0) {
+                    throw new ConflictoReservaException("El saldo ya fue registrado.");
+                }
+                BigDecimal saldo = reserva.getPrecioTotal().subtract(
+                        totalPagado(conexion, reservaId, TipoPago.SENA))
+                    .subtract(totalPagado(conexion, reservaId, TipoPago.SALDO)).max(BigDecimal.ZERO);
+                if (saldo.signum() == 0) {
+                    throw new ConflictoReservaException("La reserva no tiene saldo pendiente.");
+                }
+                Pago pago = insertarPago(conexion, reservaId, usuarioId, TipoPago.SALDO, saldo, fechaHora);
+                conexion.commit();
+                return pago;
+            } catch (SQLException | RuntimeException e) {
+                rollbackSilencioso(conexion);
+                if (e instanceof PersistenciaException persistencia) throw persistencia;
+                if (e instanceof RuntimeException runtime) throw runtime;
+                throw new PersistenciaException("No se pudo registrar el saldo.", e);
+            }
+        } catch (SQLException e) {
+            throw new PersistenciaException("No se pudo iniciar el pago de saldo.", e);
+        }
+    }
+
+    @Override
+    public Reserva cancelar(long reservaId, long usuarioId, LocalDateTime fechaHora) {
+        if (reservaId <= 0 || usuarioId <= 0 || fechaHora == null) {
+            throw new IllegalArgumentException("Datos de cancelación inválidos.");
+        }
+        try (Connection conexion = conexiones.abrir()) {
+            conexion.setAutoCommit(false);
+            try {
+                Reserva reserva = bloquearReserva(conexion, reservaId);
+                if (reserva.getEstado() == EstadoReserva.CANCELADA) {
+                    throw new ConflictoReservaException("La reserva ya está cancelada.");
+                }
+                BigDecimal sena = totalPagado(conexion, reservaId, TipoPago.SENA);
+                BigDecimal saldo = totalPagado(conexion, reservaId, TipoPago.SALDO);
+                BigDecimal devuelto = totalPagado(conexion, reservaId, TipoPago.DEVOLUCION);
+                boolean anticipada = !reserva.getInicio().minusHours(2).isBefore(fechaHora);
+                BigDecimal devolucion = (anticipada ? sena.add(saldo) : saldo).subtract(devuelto);
+                actualizarEstado(conexion, reservaId, EstadoReserva.CANCELADA);
+                if (devolucion.signum() > 0) {
+                    insertarPago(conexion, reservaId, usuarioId, TipoPago.DEVOLUCION,
+                        devolucion, fechaHora);
+                }
+                Reserva cancelada = bloquearReserva(conexion, reservaId);
+                conexion.commit();
+                return cancelada;
+            } catch (SQLException | RuntimeException e) {
+                rollbackSilencioso(conexion);
+                if (e instanceof PersistenciaException persistencia) throw persistencia;
+                if (e instanceof RuntimeException runtime) throw runtime;
+                throw new PersistenciaException("No se pudo cancelar la reserva.", e);
+            }
+        } catch (SQLException e) {
+            throw new PersistenciaException("No se pudo iniciar la cancelación.", e);
+        }
+    }
+
+    @Override
     public List<Pago> listarPagos(long reservaId) {
         String sql = """
             SELECT id_pago, id_reserva, id_usuario, tipo, importe, fecha_hora
@@ -277,21 +415,38 @@ public final class JdbcReservaTransaccionalRepositorio implements ReservaTransac
 
     private boolean existeSuperposicion(Connection conexion, SolicitudReserva solicitud)
             throws SQLException {
+        return existeSuperposicion(conexion, solicitud.canchaId(), solicitud.inicio(),
+            solicitud.duracion(), null);
+    }
+
+    private boolean existeSuperposicion(Connection conexion, ModificacionReserva modificacion,
+                                        long reservaId) throws SQLException {
+        return existeSuperposicion(conexion, modificacion.canchaId(), modificacion.inicio(),
+            modificacion.duracion(), reservaId);
+    }
+
+    private boolean existeSuperposicion(Connection conexion, long canchaId, LocalDateTime inicio,
+                                        int duracion, Long reservaExcluida) throws SQLException {
         String sql = """
             SELECT id_reserva
             FROM reserva
             WHERE id_cancha = ? AND fecha = ?
               AND estado IN ('PENDIENTE', 'CONFIRMADA')
+              AND (? IS NULL OR id_reserva <> ?)
               AND ? < ADDTIME(hora_inicio, SEC_TO_TIME(duracion_minutos * 60))
               AND ? > hora_inicio
             LIMIT 1
             FOR UPDATE
             """;
         try (PreparedStatement consulta = conexion.prepareStatement(sql)) {
-            consulta.setLong(1, solicitud.canchaId());
-            consulta.setObject(2, solicitud.inicio().toLocalDate());
-            consulta.setObject(3, solicitud.inicio().toLocalTime());
-            consulta.setObject(4, solicitud.inicio().plusMinutes(solicitud.duracion()).toLocalTime());
+            consulta.setLong(1, canchaId);
+            consulta.setObject(2, inicio.toLocalDate());
+            if (reservaExcluida == null) consulta.setNull(3, java.sql.Types.BIGINT);
+            else consulta.setLong(3, reservaExcluida);
+            if (reservaExcluida == null) consulta.setNull(4, java.sql.Types.BIGINT);
+            else consulta.setLong(4, reservaExcluida);
+            consulta.setObject(5, inicio.toLocalTime());
+            consulta.setObject(6, inicio.plusMinutes(duracion).toLocalTime());
             try (ResultSet resultado = consulta.executeQuery()) {
                 return resultado.next();
             }
@@ -411,8 +566,8 @@ public final class JdbcReservaTransaccionalRepositorio implements ReservaTransac
 
     private Cancha crearCancha(long id, String nombre, String deporte) {
         return switch (deporte) {
-            case "Fútbol 5" -> new CanchaFutbol(id, nombre);
-            case "Pádel" -> new CanchaPadel(id, nombre);
+            case "F\u00FAtbol 5" -> new CanchaFutbol(id, nombre);
+            case "P\u00E1del" -> new CanchaPadel(id, nombre);
             case "Tenis" -> new CanchaTenis(id, nombre);
             default -> throw new PersistenciaException("Deporte de cancha no soportado: " + deporte);
         };

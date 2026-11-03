@@ -12,6 +12,9 @@ public final class Main {
     private static final DateTimeFormatter FORMATO =
         DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm").withResolverStyle(ResolverStyle.STRICT);
     public static ReservaService crearServicio(Clock reloj) {
+        if (System.getenv("ARENA_SUR_DB_URL") != null) {
+            return new ReservaService(ContextoAplicacionJdbc.desdeEntorno(), reloj);
+        }
         List<Cancha> canchas = List.of(new CanchaFutbol(1,"Fútbol 1"), new CanchaFutbol(2,"Fútbol 2"),
             new CanchaPadel(3,"Pádel 1"), new CanchaPadel(4,"Pádel 2"), new CanchaTenis(5,"Tenis 1"));
         List<Tarifa> tarifas = List.of(
@@ -52,7 +55,12 @@ public final class Main {
     }
     public static void main(String[] args) {
         ReservaService servicio = crearServicio(Clock.system(ZoneId.of("America/Argentina/Buenos_Aires")));
-        System.out.println("ARENA SUR - Prototipo en memoria. Los datos se pierden al salir.");
+        if (System.getenv("ARENA_SUR_DB_URL") == null) {
+            System.out.println("ARENA SUR - Modo memoria. Los datos se pierden al salir.");
+            System.out.println("Para persistir datos, configure ARENA_SUR_DB_URL, ARENA_SUR_DB_USER y ARENA_SUR_DB_PASSWORD.");
+        } else {
+            System.out.println("ARENA SUR - Modo MySQL persistente.");
+        }
         boolean continuar = true;
         while (continuar) {
             System.out.println("\n1 Registrar cliente | 2 Listar clientes | 3 Canchas y tarifas");
@@ -185,6 +193,8 @@ public final class Main {
                 System.out.println("Ingrese un número entero válido.");
             } catch (DateTimeParseException e) {
                 System.out.println("Fecha inválida. Use AAAA-MM-DD en consultas o AAAA-MM-DD HH:mm para turnos.");
+            } catch (PersistenciaException e) {
+                System.out.println("No se pudo completar la operación persistente: " + e.getMessage());
             } catch (NegocioException | IllegalArgumentException e) {
                 System.out.println("No se pudo completar: " + e.getMessage());
             } catch (NoSuchElementException e) {

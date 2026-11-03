@@ -1,5 +1,11 @@
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
+if (Test-Path .env) {
+    Get-Content .env | Where-Object { $_ -match '^\s*[^#][^=]*=' } | ForEach-Object {
+        $partes = $_ -split '=', 2
+        [Environment]::SetEnvironmentVariable($partes[0].Trim(), $partes[1].Trim())
+    }
+}
 
 $maven = Get-Command mvn.cmd -ErrorAction SilentlyContinue
 if (-not $maven) {

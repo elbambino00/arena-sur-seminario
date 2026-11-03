@@ -11,8 +11,8 @@ Es un script de recreación para desarrollo: elimina y vuelve a crear exclusivam
 Desde la raíz del repositorio:
 
 ```powershell
-Get-Content -Raw .\database\SCIANDRO-ESTEBAN-AP2.sql | mysql -u root -p
-Get-Content -Raw .\database\validar_arena_sur.sql | mysql -u root -p
+Get-Content -Raw -Encoding UTF8 .\database\SCIANDRO-ESTEBAN-AP2.sql | mysql -u root -p
+Get-Content -Raw -Encoding UTF8 .\database\validar_arena_sur.sql | mysql -u root -p
 ```
 
 ## Ejecución aislada con Docker
@@ -23,10 +23,10 @@ docker run --name arena-sur-mysql `
   -p 3307:3306 `
   -d mysql:8.0
 
-Get-Content -Raw .\database\SCIANDRO-ESTEBAN-AP2.sql |
+Get-Content -Raw -Encoding UTF8 .\database\SCIANDRO-ESTEBAN-AP2.sql |
   docker exec -i arena-sur-mysql mysql -uroot -parena_sur_dev
 
-Get-Content -Raw .\database\validar_arena_sur.sql |
+Get-Content -Raw -Encoding UTF8 .\database\validar_arena_sur.sql |
   docker exec -i arena-sur-mysql mysql -uroot -parena_sur_dev
 ```
 

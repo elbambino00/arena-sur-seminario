@@ -4,6 +4,7 @@ import ar.arenasur.repositorio.*;
 import java.math.BigDecimal;
 import java.time.*;
 import java.util.*;
+import ar.arenasur.consola.ContextoAplicacionJdbc;
 
 /** La validación y el registro pertenecen al servicio, no al menú. */
 public final class ReservaService {
@@ -14,6 +15,7 @@ public final class ReservaService {
     private final List<Cliente> clientes = new ArrayList<>();
     private final PagoRepositorio pagos;
     private long idPago = 1;
+    private final ContextoAplicacionJdbc jdbc;
     public ReservaService(ReservaRepositorio repositorio, Clock reloj, List<Cancha> canchas, List<Tarifa> tarifas) {
         this(repositorio, new PagoMemoriaRepositorio(), reloj, canchas, tarifas);
     }
@@ -22,19 +24,29 @@ public final class ReservaService {
         this.repositorio = Objects.requireNonNull(repositorio); this.reloj = Objects.requireNonNull(reloj);
         this.pagos = Objects.requireNonNull(pagos);
         this.canchas = List.copyOf(canchas); this.tarifas = List.copyOf(tarifas);
+        this.jdbc = null;
+    }
+    public ReservaService(ContextoAplicacionJdbc jdbc, Clock reloj) {
+        this.jdbc = Objects.requireNonNull(jdbc);
+        this.reloj = Objects.requireNonNull(reloj);
+        this.repositorio = null;
+        this.pagos = null;
+        this.canchas = List.copyOf(jdbc.canchas().listarActivas());
+        this.tarifas = List.copyOf(jdbc.tarifas().listarActivas());
     }
     public Cliente registrarCliente(String nombre, String apellido, String telefono, String email) {
+        if (jdbc != null) return jdbc.clientes().guardar(new DatosCliente(nombre, apellido, telefono, email));
         Cliente nuevo = new Cliente(clientes.size() + 1L, nombre, apellido, telefono, email);
         if (clientes.stream().anyMatch(c -> c.getEmail().equalsIgnoreCase(nuevo.getEmail())))
             throw new NegocioException("El email ya está registrado.");
         clientes.add(nuevo); return nuevo;
     }
-    public List<Cliente> clientes() { return List.copyOf(clientes); }
+    public List<Cliente> clientes() { return jdbc == null ? List.copyOf(clientes) : jdbc.clientes().listarActivos(); }
     public List<Cancha> canchas() { return canchas; }
     public List<Tarifa> tarifas() { return tarifas; }
     public List<Reserva> reservas() {
         LocalDateTime ahora = LocalDateTime.now(reloj);
-        List<Reserva> lista = repositorio.listar();
+        List<Reserva> lista = jdbc == null ? repositorio.listar() : jdbc.reservas().listar();
         lista.forEach(r -> r.actualizarVencimiento(ahora));
         return lista;
     }
@@ -42,10 +54,10 @@ public final class ReservaService {
                                            EstadoReserva estado) {
         if (clienteId == null && canchaId == null && fecha == null && estado == null)
             throw new NegocioException("Ingrese al menos un criterio de búsqueda.");
-        if (clienteId != null && clientes.stream().noneMatch(c -> c.getId() == clienteId))
+        if (clienteId != null && clientes().stream().noneMatch(c -> c.getId() == clienteId))
             throw new NegocioException("Cliente inexistente.");
         if (canchaId != null) cancha(canchaId);
-        return repositorio.listar().stream()
+        return (jdbc == null ? repositorio.listar() : jdbc.reservas().listar()).stream()
             .filter(r -> clienteId == null || r.getCliente().getId() == clienteId)
             .filter(r -> canchaId == null || r.getCancha().getId() == canchaId)
             .filter(r -> fecha == null || r.getInicio().toLocalDate().equals(fecha))
@@ -118,7 +130,7 @@ public final class ReservaService {
         if (!desde.isAfter(hasta)) franjas.add(new FranjaDisponible(cancha, duracion, desde, hasta));
     }
     public Reserva detalleReserva(long reservaId) {
-        return repositorio.listar().stream().filter(r -> r.getId() == reservaId).findFirst()
+        return (jdbc == null ? repositorio.listar() : jdbc.reservas().listar()).stream().filter(r -> r.getId() == reservaId).findFirst()
             .orElseThrow(() -> new NegocioException("Reserva inexistente."));
     }
     private Cancha cancha(long id) {
@@ -146,7 +158,13 @@ public final class ReservaService {
             .noneMatch(r -> r.seSuperpone(canchaId, inicio, inicio.plusMinutes(duracion)));
     }
     public synchronized Reserva registrar(long clienteId, long canchaId, LocalDateTime inicio, int duracion) {
-        Cliente cliente = clientes.stream().filter(c -> c.getId() == clienteId).findFirst()
+        if (jdbc != null) {
+            validarTurno(inicio, duracion);
+            if (jdbc.clientes().buscarActivo(clienteId).isEmpty()) throw new NegocioException("Cliente inexistente.");
+            return jdbc.reservas().crearPendiente(new SolicitudReserva(clienteId, canchaId, duracion,
+                inicio, 1L, LocalDateTime.now(reloj)));
+        }
+        Cliente cliente = clientes().stream().filter(c -> c.getId() == clienteId).findFirst()
             .orElseThrow(() -> new NegocioException("Cliente inexistente."));
         if (!disponible(canchaId, inicio, duracion)) throw new NegocioException("El horario está ocupado.");
         Cancha cancha = cancha(canchaId);
@@ -155,6 +173,11 @@ public final class ReservaService {
         repositorio.guardar(reserva); return reserva;
     }
     public synchronized Reserva modificar(long reservaId, long canchaId, LocalDateTime nuevoInicio, int duracion) {
+        if (jdbc != null) {
+            validarTurno(nuevoInicio, duracion);
+            return jdbc.reservas().modificar(reservaId,
+                new ModificacionReserva(canchaId, duracion, nuevoInicio, LocalDateTime.now(reloj)));
+        }
         Reserva r = reserva(reservaId);
         LocalDateTime ahora = LocalDateTime.now(reloj);
         if (r.getEstado() == EstadoReserva.CANCELADA)
@@ -177,6 +200,7 @@ public final class ReservaService {
             .orElseThrow(() -> new NegocioException("Reserva inexistente."));
     }
     public synchronized Pago registrarSena(long reservaId) {
+        if (jdbc != null) return jdbc.reservas().registrarSena(reservaId, 1L, LocalDateTime.now(reloj));
         Reserva r = reserva(reservaId);
         LocalDateTime ahora = LocalDateTime.now(reloj);
         if (r.getEstado() == EstadoReserva.PENDIENTE && !ahora.isBefore(r.getVencimiento()))
@@ -191,6 +215,7 @@ public final class ReservaService {
         return pago;
     }
     public synchronized Pago registrarSaldo(long reservaId) {
+        if (jdbc != null) return jdbc.reservas().registrarSaldo(reservaId, 1L, LocalDateTime.now(reloj));
         Reserva r = reserva(reservaId);
         if (r.getEstado() != EstadoReserva.CONFIRMADA) throw new NegocioException("Solo se cobra saldo de una reserva confirmada.");
         if (LocalDateTime.now(reloj).isBefore(r.getFin()))
@@ -206,6 +231,7 @@ public final class ReservaService {
         return pago;
     }
     public synchronized Reserva cancelar(long reservaId) {
+        if (jdbc != null) return jdbc.reservas().cancelar(reservaId, 1L, LocalDateTime.now(reloj));
         Reserva r = reserva(reservaId);
         List<Pago> movimientos = pagos.listarPorReserva(reservaId);
         BigDecimal senaPagada = movimientos.stream().filter(p -> p.getTipo() == TipoPago.SENA)
@@ -226,12 +252,17 @@ public final class ReservaService {
         return r;
     }
     public List<Pago> pagos(long reservaId) {
+        if (jdbc != null) {
+            reserva(reservaId);
+            return jdbc.reservas().listarPagos(reservaId);
+        }
         reserva(reservaId);
         return pagos.listarPorReserva(reservaId);
     }
     public BigDecimal saldoPendiente(long reservaId) {
         Reserva r = reserva(reservaId);
-        List<Pago> movimientos = pagos.listarPorReserva(reservaId);
+        if (r.getEstado() == EstadoReserva.CANCELADA) return BigDecimal.ZERO.setScale(2);
+        List<Pago> movimientos = pagos(reservaId);
         BigDecimal senaAbonada = movimientos.stream().filter(p -> p.getTipo() == TipoPago.SENA)
             .map(Pago::getImporte).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal saldoAbonado = movimientos.stream().filter(p -> p.getTipo() == TipoPago.SALDO)
@@ -245,14 +276,16 @@ public final class ReservaService {
         return diferenciaSenaPendiente(reserva(reservaId));
     }
     private BigDecimal diferenciaSenaPendiente(Reserva r) {
-        BigDecimal senaAbonada = pagos.listarPorReserva(r.getId()).stream()
+        if (r.getEstado() == EstadoReserva.CANCELADA) return BigDecimal.ZERO.setScale(2);
+        BigDecimal senaAbonada = pagos(r.getId()).stream()
             .filter(p -> p.getTipo() == TipoPago.SENA).map(Pago::getImporte)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
         return r.getSena().subtract(senaAbonada).max(BigDecimal.ZERO);
     }
     public BigDecimal creditoFavor(long reservaId) {
         Reserva r = reserva(reservaId);
-        BigDecimal senaAbonada = pagos.listarPorReserva(reservaId).stream()
+        if (r.getEstado() == EstadoReserva.CANCELADA) return BigDecimal.ZERO.setScale(2);
+        BigDecimal senaAbonada = pagos(reservaId).stream()
             .filter(p -> p.getTipo() == TipoPago.SENA).map(Pago::getImporte)
             .reduce(BigDecimal.ZERO, BigDecimal::add);
         return senaAbonada.subtract(r.getSena()).max(BigDecimal.ZERO);

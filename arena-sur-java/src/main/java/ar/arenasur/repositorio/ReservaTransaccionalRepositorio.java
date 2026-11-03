@@ -2,6 +2,7 @@ package ar.arenasur.repositorio;
 
 import ar.arenasur.modelo.Pago;
 import ar.arenasur.modelo.Reserva;
+import ar.arenasur.modelo.ModificacionReserva;
 import ar.arenasur.modelo.SolicitudReserva;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -13,5 +14,8 @@ public interface ReservaTransaccionalRepositorio {
     Optional<Reserva> buscar(long id);
     List<Reserva> listar();
     Pago registrarSena(long reservaId, long usuarioId, LocalDateTime fechaHora);
+    Reserva modificar(long reservaId, ModificacionReserva modificacion);
+    Pago registrarSaldo(long reservaId, long usuarioId, LocalDateTime fechaHora);
+    Reserva cancelar(long reservaId, long usuarioId, LocalDateTime fechaHora);
     List<Pago> listarPagos(long reservaId);
 }
