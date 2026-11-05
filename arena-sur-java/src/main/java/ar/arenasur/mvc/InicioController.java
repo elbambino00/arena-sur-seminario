@@ -13,6 +13,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.stream.Collectors;
 import java.util.List;
+import java.time.LocalDate;
 
 /** Controlador inicial: coordina la lectura JDBC sin contener componentes visuales. */
 public final class InicioController {
@@ -57,6 +58,19 @@ public final class InicioController {
     public List<Reserva> reservas() { return reservas; }
     public String mensaje() { return mensaje; }
 
+    public boolean guardarCancha(String nombre, String deporte) {
+        try { contexto.canchas().guardar(nombre, deporte); cargarCatalogo(); return true; }
+        catch (RuntimeException e) { mensaje = e.getMessage(); return false; }
+    }
+    public boolean modificarCancha(long id, String nombre) {
+        try { contexto.canchas().modificarNombre(id, nombre); cargarCatalogo(); return true; }
+        catch (RuntimeException e) { mensaje = e.getMessage(); return false; }
+    }
+    public boolean eliminarCancha(long id) {
+        try { contexto.canchas().desactivar(id); cargarCatalogo(); return true; }
+        catch (RuntimeException e) { mensaje = e.getMessage(); return false; }
+    }
+
     public List<Cancha> disponibles(String deporte, String fecha, String hora, int duracion) {
         try {
             LocalDateTime inicio = LocalDateTime.parse(fecha + " " + hora, FORMATO);
@@ -68,6 +82,26 @@ public final class InicioController {
             mensaje = resultado.size() + " canchas disponibles.";
             return resultado;
         } catch (RuntimeException e) { mensaje = e.getMessage(); return List.of(); }
+    }
+
+    public List<String> agenda(String fecha, String deporte) {
+        try {
+            LocalDate dia = LocalDate.parse(fecha);
+            return reservas.stream().filter(r -> r.getInicio().toLocalDate().equals(dia))
+                .filter(r -> deporte == null || deporte.isBlank() || r.getCancha().getDeporte().equalsIgnoreCase(deporte))
+                .map(r -> r.getCancha().getNombre() + " | " + r.getInicio().toLocalTime()
+                    + " - " + r.getFin().toLocalTime() + " | " + r.getEstado()
+                    + " | Reserva " + r.getId()).toList();
+        } catch (RuntimeException e) { mensaje = e.getMessage(); return List.of(); }
+    }
+
+    public List<Reserva> consultar(String cliente, String cancha, String fecha, String estado) {
+        return reservas.stream()
+            .filter(r -> cliente == null || cliente.isBlank() || r.getCliente().getNombreCompleto().toLowerCase().contains(cliente.toLowerCase()))
+            .filter(r -> cancha == null || cancha.isBlank() || r.getCancha().getNombre().toLowerCase().contains(cancha.toLowerCase()))
+            .filter(r -> fecha == null || fecha.isBlank() || r.getInicio().toLocalDate().toString().equals(fecha))
+            .filter(r -> estado == null || estado.isBlank() || r.getEstado().name().equalsIgnoreCase(estado))
+            .toList();
     }
 
     public boolean registrarCliente(String nombre, String apellido, String telefono, String email) {

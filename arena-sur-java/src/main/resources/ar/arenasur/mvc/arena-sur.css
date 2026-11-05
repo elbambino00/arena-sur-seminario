@@ -48,12 +48,31 @@
 }
 
 .navigation-item {
+    -fx-background-color: transparent;
     -fx-text-fill: #26384f;
     -fx-font-weight: bold;
+    -fx-cursor: hand;
+}
+
+.navigation-item:hover {
+    -fx-background-color: #c4d8f5;
+}
+
+.navigation-item:focused {
+    -fx-border-color: #007f5f;
+    -fx-border-width: 0 0 2px 0;
 }
 
 .tab-pane {
     -fx-padding: 16px 0 0 0;
+}
+
+/* La navegación superior es el único selector de módulos. */
+.tab-pane .tab-header-area {
+    visibility: collapse;
+    -fx-pref-height: 0;
+    -fx-min-height: 0;
+    -fx-max-height: 0;
 }
 
 .tab-pane .tab-header-area .tab-header-background {
@@ -101,6 +120,20 @@
     -fx-font-weight: bold;
     -fx-padding: 14px;
     -fx-background-radius: 5px;
+}
+
+.court-row {
+    -fx-background-color: white;
+    -fx-padding: 12px;
+    -fx-border-color: #d2dce8;
+    -fx-border-radius: 6px;
+    -fx-background-radius: 6px;
+    -fx-alignment: center-left;
+}
+
+.court-row .label {
+    -fx-min-width: 360px;
+    -fx-font-weight: bold;
 }
 
 .text-field, .combo-box {
